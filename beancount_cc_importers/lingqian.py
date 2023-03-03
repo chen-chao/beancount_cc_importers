@@ -76,7 +76,7 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
 
     def _is_lingqian_expense(self, row: dict) -> bool:
         return row['收/支'] == '支出' and row['支付方式'] == '零钱' and (
-            row['当前状态'] == '支付成功' or row['当前状态'] == '已转账')
+            row['当前状态'] == '支付成功' or row['当前状态'] == '已转账' or row['当前状态'] == '对方已收钱')
 
     def _is_lingqian_income(self, row: dict) -> bool:
-        return row['收/支'] == '收入' and row['当前状态'] == '已存入零钱'
+        return row['收/支'] == '收入' and (row['当前状态'] == '已存入零钱' or row['当前状态'] == '已收钱')
