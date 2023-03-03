@@ -58,9 +58,13 @@ class AbcEmlToCsv(EmlToCsvConverter):
         trs = tree.xpath('//*[@id="loopBand1"]//*[@id="fixBand10"]//table//table//tr')
         for tr in trs:
             row = list(map(get_node_text, tr.xpath('.//font')))
-            # print(row)
             if len(row) < 7:
-                continue
+                # 还款记录
+                if len(row) == 6 and row[2] == '':
+                    row.insert(4, '')
+                else:
+                    print(row)
+                    continue
 
             row[-1] = clean_number(row[-1])
             row[-2] = clean_number(row[-2])
