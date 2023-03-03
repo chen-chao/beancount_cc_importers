@@ -5,6 +5,7 @@ import csv
 import email
 import io
 import re
+from datetime import date
 
 from lxml import etree
 
@@ -123,8 +124,14 @@ class CommEmlToCsv(EmlToCsvConverter):
         # ,交易日期,记账日期,卡末四位,交易说明,交易金额,入账金额
         writer.writerow(headers)
 
+        start_date, end_date = self._get_period(tree)
+
         for c in repay.xpath('.//tbody/tr'):
             row = list(map(get_node_text, c.xpath('./td')))
+            # date
+            row[1] = self._update_date(row[1], start_date, end_date).isoformat()
+            row[2] = self._update_date(row[2], start_date, end_date).isoformat()
+
             # 交易金额,入账金额
             row[-1] = '-' + clean_number(row[-1])
             row[-2] = '-' + clean_number(row[-2])
@@ -133,6 +140,10 @@ class CommEmlToCsv(EmlToCsvConverter):
         take = tree.xpath('//*[@id="takeList"]//table')[0]
         for c in take.xpath('.//tbody/tr'):
             row = list(map(get_node_text, c.xpath('./td')))
+            # date
+            row[1] = self._update_date(row[1], start_date, end_date).isoformat()
+            row[2] = self._update_date(row[2], start_date, end_date).isoformat()
+
             # 交易金额,入账金额
             row[-1] = clean_number(row[-1])
             row[-2] = clean_number(row[-2])
@@ -141,3 +152,24 @@ class CommEmlToCsv(EmlToCsvConverter):
     def get_balance(self, tree: etree._ElementTree) -> str:
         td = tree.xpath('//*[contains(text(), "本期应还款")]')[0]
         return clean_number(td.getnext().text)
+
+    def _get_period(self, tree: etree._ElementTree):
+        # sample text: 账单周期 2023/01/14-2023/02/13
+        p = tree.xpath('//*[contains(text(), "账单周期")]')[0]
+        fields = p.text.split(' ')
+        if len(fields) != 2:
+            print(f"Not a valid time period: {p.text}")
+
+        start, end = fields[-1].split('-')
+        start_date = date.fromisoformat(start.replace('/', '-'))
+        end_date = date.fromisoformat(end.replace('/', '-'))
+        return start_date, end_date
+
+    def _update_date(self, day_field, start_date, end_date):
+        month=int(day_field[:2])
+        day=int(day_field[3:5])
+        for y in range(start_date.year, end_date.year + 1):
+            d = date(year=y, month=month, day=day)
+            if d >= start_date and d <= end_date:
+                return d
+        raise ValueError("no proper day in given period")
