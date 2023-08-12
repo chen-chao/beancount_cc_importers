@@ -59,11 +59,13 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
         return entries
 
     def file_date(self, file: _FileMemo):
-        for i, line in enumerate(file.contents()):
+        # _FileMemo.contents() returns a string
+        for i, line in enumerate(file.contents().split('\n')):
             if i == 2:
-                _, end_time = line.split('终止时间：')
-                # end_time is in format of [2022-12-27 12:51:23]
                 try:
+                    _, end_time = line.split('终止时间：')
+
+                    # end_time is in format of [2022-12-27 12:51:23]
                     return datetime.date.fromisoformat(end_time[1:11])
                 except IndexError:
                     raise ValueError(f'date format should be YYYY-MM-DD, current is {line}')

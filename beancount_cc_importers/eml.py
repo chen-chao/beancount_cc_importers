@@ -1,6 +1,7 @@
 import csv
 import os
 import os.path
+import tempfile
 
 from beancount.ingest.importers.csv import Importer as CsvImorter
 from beancount.ingest.importers.mixins.identifier import IdentifyMixin
@@ -15,27 +16,37 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         self.account = csv_importer.filing_account
         self.csv_importer = csv_importer
         self.eml_converter = eml_converter
+        self.tempfiles = {}
 
         super().__init__(filing=self.account, prefix=None, matchers=matchers)
 
     def ensure_csv(self, filename: str):
+        if filename in self.tempfiles:
+            return self.tempfiles[filename]
+
         g_csv = self._gen_csv_path(filename)
 
-        if not os.path.exists(g_csv):
-            with open(filename, 'r', encoding='utf-8') as eml:
-                tree = self.eml_converter.get_etree(eml)
+        with open(filename, 'r', encoding='utf-8') as eml:
+            tree = self.eml_converter.get_etree(eml)
 
-            with open(g_csv, 'w+', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                self.eml_converter.get_csv(tree, writer)
-                # self.eml_converter.get_balance(tree)
+        with open(g_csv, 'w+', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            self.eml_converter.get_csv(tree, writer)
+            # self.eml_converter.get_balance(tree)
 
         return g_csv
 
     def extract(self, file, existing_entries=None):
         g_csv = self.ensure_csv(file.name)
         csv_file = _FileMemo(g_csv)
-        return self.csv_importer.extract(csv_file, existing_entries)
+        print(f"g_csv: {g_csv}")
+        entries = self.csv_importer.extract(csv_file, existing_entries)
+
+        # remove the tempfile after extracting
+        # temp = self.tempfiles.pop(file.name)
+        # os.remove(temp)
+
+        return entries
 
     def file_date(self, file):
         g_csv = self.ensure_csv(file.name)
@@ -43,14 +54,6 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         return self.csv_importer.file_date(csv_file)
 
     def _gen_csv_path(self, filename:str):
-        current_dir = os.path.dirname(__file__)
-        g_dir = os.path.join(os.path.dirname(current_dir), 'gen')
-        if not os.path.exists(g_dir):
-            os.mkdir(g_dir)
-
-        basename = os.path.basename(filename)
-        barename, _ = os.path.splitext(basename)
-        g_csv = barename + '.g.csv'
-
-        full_csv = os.path.join(g_dir, g_csv)
-        return full_csv
+        _, temp = tempfile.mkstemp(prefix="beancount-cc-importer", suffix=".g.csv")
+        self.tempfiles[filename] = temp
+        return temp
