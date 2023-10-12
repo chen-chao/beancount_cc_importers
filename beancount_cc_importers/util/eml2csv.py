@@ -36,6 +36,16 @@ def clean_number(s: str) -> str:
         print(f"Cannot clean number: {s}, exception: {err}")
         return 0
 
+def add_missing_year(day_field, start_date, end_date):
+    month=int(day_field[:2])
+    day=int(day_field[3:5])
+    for y in range(start_date.year, end_date.year + 1):
+        d = date(year=y, month=month, day=day)
+        if d >= start_date and d <= end_date:
+            return d
+    raise ValueError("no proper day in given period")
+
+
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
     '''Base class of EML to CSV converter.'''
     @abc.abstractclassmethod
@@ -91,6 +101,8 @@ class CmbEmlToCsv(EmlToCsvConverter):
         headers = ['交易日', '记账日', '交易摘要', '人民币金额', '卡号末四位', '交易地点', '交易地金额']
         writer.writerow(headers)
         trs = tree.xpath('//*[@id="fixBand15"]//table//table/tbody/tr')
+        start_date, end_date = self._get_period(tree)
+
         for tr in trs:
             row = list(map(get_node_text, tr.xpath('.//font')))
             # print(row)
@@ -106,6 +118,9 @@ class CmbEmlToCsv(EmlToCsvConverter):
             if '/' not in row[0]:
                 row[0] = row[0][:2] + '/' + row[0][2:4]
 
+            row[0] = add_missing_year(row[0], start_date, end_date).isoformat()
+            row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
+
             row[-1] = clean_number(row[-1])
             writer.writerow(row)
 
@@ -115,6 +130,14 @@ class CmbEmlToCsv(EmlToCsvConverter):
             if v.strip() == '':
                 continue
             return clean_number(v)
+
+    def _get_period(self, tree):
+        # sample text: 账单周期 2023/01/14-2023/02/13'
+        e = tree.xpath("//*[@id='statementCycle']")[0]
+        start, end = get_node_text(e).split('-')
+        start_date = date.fromisoformat(start.replace('/', '-'))
+        end_date = date.fromisoformat(end.replace('/', '-'))
+        return start_date, end_date
 
 
 class CommEmlToCsv(EmlToCsvConverter):
@@ -132,8 +155,8 @@ class CommEmlToCsv(EmlToCsvConverter):
         for c in repay.xpath('.//tbody/tr'):
             row = list(map(get_node_text, c.xpath('./td')))
             # date
-            row[1] = self._update_date(row[1], start_date, end_date).isoformat()
-            row[2] = self._update_date(row[2], start_date, end_date).isoformat()
+            row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
+            row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
 
             # 交易金额,入账金额
             row[-1] = '-' + clean_number(row[-1])
@@ -144,8 +167,8 @@ class CommEmlToCsv(EmlToCsvConverter):
         for c in take.xpath('.//tbody/tr'):
             row = list(map(get_node_text, c.xpath('./td')))
             # date
-            row[1] = self._update_date(row[1], start_date, end_date).isoformat()
-            row[2] = self._update_date(row[2], start_date, end_date).isoformat()
+            row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
+            row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
 
             # 交易金额,入账金额
             row[-1] = clean_number(row[-1])
@@ -167,12 +190,3 @@ class CommEmlToCsv(EmlToCsvConverter):
         start_date = date.fromisoformat(start.replace('/', '-'))
         end_date = date.fromisoformat(end.replace('/', '-'))
         return start_date, end_date
-
-    def _update_date(self, day_field, start_date, end_date):
-        month=int(day_field[:2])
-        day=int(day_field[3:5])
-        for y in range(start_date.year, end_date.year + 1):
-            d = date(year=y, month=month, day=day)
-            if d >= start_date and d <= end_date:
-                return d
-        raise ValueError("no proper day in given period")
