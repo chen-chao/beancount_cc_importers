@@ -21,7 +21,7 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         super().__init__(filing=self.account, prefix=None, matchers=matchers)
 
     def ensure_csv(self, filename: str):
-        if filename in self.tempfiles:
+        if filename in self.tempfiles and os.path.exists(self.tempfiles[filename]):
             return self.tempfiles[filename]
 
         g_csv = self._gen_csv_path(filename)
@@ -54,6 +54,6 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         return self.csv_importer.file_date(csv_file)
 
     def _gen_csv_path(self, filename:str):
-        _, temp = tempfile.mkstemp(prefix="beancount-cc-importer", suffix=".g.csv")
+        _, temp = tempfile.mkstemp(prefix="beancount-cc-importer-", suffix=".g.csv")
         self.tempfiles[filename] = temp
         return temp
