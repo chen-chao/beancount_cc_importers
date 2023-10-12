@@ -30,8 +30,11 @@ def get_node_text(node: etree._Element) -> str:
 
 def clean_number(s: str) -> str:
     """1,637.00 -> 1637"""
-    return re.match('.*?(-?\d+(.\d+)?)', s.replace(',', '')).group(1)
-
+    try:
+        return re.match('.*?(-?\d+(.\d+)?)', s.replace(',', '')).group(1)
+    except AttributeError as err:
+        print(f"Cannot clean number: {s}, exception: {err}")
+        return 0
 
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
     '''Base class of EML to CSV converter.'''
