@@ -16,6 +16,13 @@ def get_etree_from_eml(eml: io.TextIOWrapper, encoding: str) -> etree._ElementTr
     html = payload.decode(encoding=encoding)
     return etree.parse(io.StringIO(html), etree.HTMLParser())
 
+def get_etree_from_eml_payload(eml: io.TextIOWrapper, encoding: str) -> etree._ElementTree:
+    msg = email.message_from_file(eml)
+    cmb = list(msg.walk())[-1]
+    payload = cmb.get_payload(decode=True)
+    html = payload.decode(encoding=encoding)
+    return etree.parse(io.StringIO(html), etree.HTMLParser())
+
 def get_node_text(node: etree._Element) -> str:
     if node is None:
         return ''
@@ -91,11 +98,7 @@ class AbcEmlToCsv(EmlToCsvConverter):
 
 class CmbEmlToCsv(EmlToCsvConverter):
     def get_etree(self, eml: io.TextIOWrapper):
-        msg = email.message_from_file(eml)
-        cmb = list(msg.walk())[-1]
-        payload = cmb.get_payload(decode=True)
-        html = payload.decode(encoding='utf-8')
-        return etree.parse(io.StringIO(html), etree.HTMLParser())
+        return get_etree_from_eml_payload(eml, 'utf-8')
 
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         headers = ['交易日', '记账日', '交易摘要', '人民币金额', '卡号末四位', '交易地点', '交易地金额']
@@ -105,7 +108,7 @@ class CmbEmlToCsv(EmlToCsvConverter):
 
         for tr in trs:
             row = list(map(get_node_text, tr.xpath('.//font')))
-            # print(row)
+            print(row)
             if len(row) < 7:
                 continue
 
@@ -193,10 +196,39 @@ class CommEmlToCsv(EmlToCsvConverter):
 
 class PingAnEmlToCsv(EmlToCsvConverter):
     def get_etree(self, eml: io.TextIOWrapper) -> etree._ElementTree:
-        pass
+        return get_etree_from_eml_payload(eml, 'utf-8')
 
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
-        pass
+        tables = tree.xpath("//tr/td/table")
+        data = None
+        for i, t in enumerate(tables):
+            text = t.xpath(".//tr//*[contains(text(), '人民币账户交易明细')]")
+            if text:
+                try:
+                    data = tables[i+1]
+                except IndexError:
+                    raise ValueError("No data table after 人民币账户交易明细")
+
+                break
+
+        if data is None:
+            raise ValueError("人民币账户交易明细 not found")
+        
+        headers = ['交易日期', '记账日期', '交易说明', '人民币金额']
+        writer.writerow(headers)
+        for tr in data.xpath(".//tbody/tr"):
+            row = list(map(get_node_text, tr.xpath("./td")))
+            if len(row) != 4:
+                continue
+
+            try:
+                # the first field should be date like 2023-09-02
+                _ = date.fromisoformat(row[0])
+                row[-1] = clean_number(row[-1])
+                writer.writerow(row)
+            except (ValueError, IndexError):
+                # not transaction data, skip to next
+                continue
 
     def get_balance(self, tree: etree._ElementTree) -> str:
         pass
