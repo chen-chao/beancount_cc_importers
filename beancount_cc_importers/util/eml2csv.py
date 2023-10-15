@@ -92,7 +92,7 @@ class AbcEmlToCsv(EmlToCsvConverter):
 class CmbEmlToCsv(EmlToCsvConverter):
     def get_etree(self, eml: io.TextIOWrapper):
         msg = email.message_from_file(eml)
-        cmb = list(msg.walk())[1]
+        cmb = list(msg.walk())[-1]
         payload = cmb.get_payload(decode=True)
         html = payload.decode(encoding='utf-8')
         return etree.parse(io.StringIO(html), etree.HTMLParser())
@@ -190,3 +190,13 @@ class CommEmlToCsv(EmlToCsvConverter):
         start_date = date.fromisoformat(start.replace('/', '-'))
         end_date = date.fromisoformat(end.replace('/', '-'))
         return start_date, end_date
+
+class PingAnEmlToCsv(EmlToCsvConverter):
+    def get_etree(self, eml: io.TextIOWrapper) -> etree._ElementTree:
+        pass
+
+    def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
+        pass
+
+    def get_balance(self, tree: etree._ElementTree) -> str:
+        pass
