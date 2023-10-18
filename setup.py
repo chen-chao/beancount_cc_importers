@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding="utf-8") as fp:
 
 setup_kwargs = {
     'name': 'beancount_cc_importers',
-    'version': '0.1.2',
+    'version': '0.1.4',
     'description': 'Beancount plugins to import bank debts',
     'long_description': long_description,
     'license': 'GPL-3.0',
