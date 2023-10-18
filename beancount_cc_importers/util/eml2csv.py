@@ -9,18 +9,16 @@ from datetime import date
 
 from lxml import etree
 
-
-def get_etree_from_eml(eml: io.TextIOWrapper, encoding: str) -> etree._ElementTree:
+def get_etree_from_eml(eml: io.TextIOWrapper) -> etree._ElementTree:
     msg = email.message_from_file(eml)
-    payload = msg.get_payload(decode=True)
-    html = payload.decode(encoding=encoding)
-    return etree.parse(io.StringIO(html), etree.HTMLParser())
+    parts = list(msg.walk())
+    if len(parts) == 0:
+        raise ValueError("invalid email")
 
-def get_etree_from_eml_payload(eml: io.TextIOWrapper, encoding: str) -> etree._ElementTree:
-    msg = email.message_from_file(eml)
-    cmb = list(msg.walk())[-1]
-    payload = cmb.get_payload(decode=True)
-    html = payload.decode(encoding=encoding)
+    # the last part is often the html
+    book = parts[-1]
+    payload = book.get_payload(decode=True)
+    html = payload.decode(encoding=book.get_content_charset())
     return etree.parse(io.StringIO(html), etree.HTMLParser())
 
 def get_node_text(node: etree._Element) -> str:
@@ -55,10 +53,6 @@ def add_missing_year(day_field, start_date, end_date):
 
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
     '''Base class of EML to CSV converter.'''
-    @abc.abstractclassmethod
-    def get_etree(self, eml: io.TextIOWrapper) -> etree._ElementTree:
-        pass
-
     @abc.abstractmethod
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         pass
@@ -69,9 +63,6 @@ class EmlToCsvConverter(metaclass=abc.ABCMeta):
 
 
 class AbcEmlToCsv(EmlToCsvConverter):
-    def get_etree(self, eml: io.TextIOWrapper):
-        return get_etree_from_eml(eml, encoding='gbk')
-
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         headers = ['交易日', '入账日期', '卡号末四位', '交易摘要', '交易地点', '交易金额', '入账金额']
         writer.writerow(headers)
@@ -97,9 +88,6 @@ class AbcEmlToCsv(EmlToCsvConverter):
 
 
 class CmbEmlToCsv(EmlToCsvConverter):
-    def get_etree(self, eml: io.TextIOWrapper):
-        return get_etree_from_eml_payload(eml, 'utf-8')
-
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         headers = ['交易日', '记账日', '交易摘要', '人民币金额', '卡号末四位', '交易地点', '交易地金额']
         writer.writerow(headers)
@@ -144,9 +132,6 @@ class CmbEmlToCsv(EmlToCsvConverter):
 
 
 class CommEmlToCsv(EmlToCsvConverter):
-    def get_etree(self, eml: io.TextIOWrapper):
-        return get_etree_from_eml(eml, encoding='gbk')
-
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         repay = tree.xpath('//*[@id="repayList"]//table')[0]
         headers = map(get_node_text, repay.xpath('.//thead/tr/td'))
@@ -195,9 +180,6 @@ class CommEmlToCsv(EmlToCsvConverter):
         return start_date, end_date
 
 class PingAnEmlToCsv(EmlToCsvConverter):
-    def get_etree(self, eml: io.TextIOWrapper) -> etree._ElementTree:
-        return get_etree_from_eml_payload(eml, 'utf-8')
-
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         tables = tree.xpath("//tr/td/table")
         data = None

@@ -8,7 +8,7 @@ from beancount.ingest.importers.mixins.identifier import IdentifyMixin
 from beancount.ingest.importers.mixins.filing import FilingMixin
 from beancount.ingest.cache import _FileMemo
 
-from beancount_cc_importers.util.eml2csv import EmlToCsvConverter
+from beancount_cc_importers.util.eml2csv import (get_etree_from_eml, EmlToCsvConverter)
 
 class EmlImporter(IdentifyMixin, FilingMixin):
     '''Beancount importer for debt emails from bank CMB/COMM/ABC'''
@@ -27,7 +27,7 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         g_csv = self._gen_csv_path(filename)
 
         with open(filename, 'r', encoding='utf-8') as eml:
-            tree = self.eml_converter.get_etree(eml)
+            tree = get_etree_from_eml(eml)
 
         with open(g_csv, 'w+', encoding='utf-8') as f:
             writer = csv.writer(f)
