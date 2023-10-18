@@ -3,5 +3,10 @@ build/
 dist/
 *.egg-info/
 
+.venv
 *.pyc
 gen/
+
+# pdm
+pdm.lock
+.pdm-python
