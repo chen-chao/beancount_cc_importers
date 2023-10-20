@@ -5,8 +5,9 @@ dist/
 
 .venv
 *.pyc
-gen/
-
-# pdm
 pdm.lock
 .pdm-python
+
+*.eml
+*.json
+*.csv

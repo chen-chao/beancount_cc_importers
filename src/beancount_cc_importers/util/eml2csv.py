@@ -36,7 +36,7 @@ def get_node_text(node: etree._Element) -> str:
 def clean_number(s: str) -> str:
     """1,637.00 -> 1637"""
     try:
-        return re.match('.*?(-?\d+(.\d+)?)', s.replace(',', '')).group(1)
+        return re.match(r'.*?(-?\d+(.\d+)?)', s.replace(',', '')).group(1)
     except AttributeError as err:
         print(f"Cannot clean number: {s}, exception: {err}")
         return 0
@@ -96,7 +96,7 @@ class CmbEmlToCsv(EmlToCsvConverter):
 
         for tr in trs:
             row = list(map(get_node_text, tr.xpath('.//font')))
-            print(row)
+            # print(row)
             if len(row) < 7:
                 continue
 

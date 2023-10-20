@@ -22,3 +22,21 @@ excludes = ["./**/.git"]
 package-dir = "src"
 includes = ["src/beancount_cc_importers"]
 source-includes = ["LICENSE", "README.md"]
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.4.2",
+]
+
+[tool.pdm.scripts]
+pytest = "pytest"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+
+addopts = "-r aR"
+testpaths = [
+    "tests/",
+]
