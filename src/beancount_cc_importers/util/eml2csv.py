@@ -133,41 +133,53 @@ class CmbEmlToCsv(EmlToCsvConverter):
         return start_date, end_date
 
 
-class CommEmlToCsv(EmlToCsvConverter):
+class CommEmlToCsv(EmlToCsvConverter):   
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
-        repay = tree.xpath('//*[contains(@id, "repayList")]//table')[0]
-        headers = map(get_node_text, repay.xpath('.//thead/tr/td'))
-        # ,交易日期,记账日期,卡末四位,交易说明,交易金额,入账金额
-        writer.writerow(headers)
-
+        writer.writerow(["", "交易日期", "记账日期", "卡末四位", "交易说明", "交易金额", "入账金额"])
+        
         start_date, end_date = self._get_period(tree)
+        repay, take = self._get_parts(tree)
+        if repay is not None:
+            for c in repay.xpath('.//tbody/tr'):
+                row = list(map(get_node_text, c.xpath('./td')))
+                # date
+                row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
+                row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
 
-        for c in repay.xpath('.//tbody/tr'):
-            row = list(map(get_node_text, c.xpath('./td')))
-            # date
-            row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
-            row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
+                # 交易金额,入账金额
+                row[-1] = '-' + clean_number(row[-1])
+                row[-2] = '-' + clean_number(row[-2])
+                writer.writerow(row)
 
-            # 交易金额,入账金额
-            row[-1] = '-' + clean_number(row[-1])
-            row[-2] = '-' + clean_number(row[-2])
-            writer.writerow(row)
+        if take is not None:
+            for c in take.xpath('.//tbody/tr'):
+                row = list(map(get_node_text, c.xpath('./td')))
+                # date
+                row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
+                row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
 
-        take = tree.xpath('//*[contains(@id, "takeList")]//table')[0]
-        for c in take.xpath('.//tbody/tr'):
-            row = list(map(get_node_text, c.xpath('./td')))
-            # date
-            row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
-            row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
-
-            # 交易金额,入账金额
-            row[-1] = clean_number(row[-1])
-            row[-2] = clean_number(row[-2])
-            writer.writerow(row)
+                # 交易金额,入账金额
+                row[-1] = clean_number(row[-1])
+                row[-2] = clean_number(row[-2])
+                writer.writerow(row)
 
     def get_balance(self, tree: etree._ElementTree) -> str:
         td = tree.xpath('//*[contains(text(), "本期应还款")]')[0]
         return clean_number(td.getnext().text)
+
+
+    def _get_parts(self, node: etree._Element):
+        repay, take = None, None
+        tables = node.xpath('.//tr/td/table')
+        # assume tables are sorted by nested layers
+        for table in reversed(tables):
+            repay_nodes = table.xpath('.//tbody//*[contains(text(), "还款、退货、费用返还明细")]')
+            take_nodes = table.xpath('.//tbody//*[contains(text(), "消费、取现、其他费用明细")]')
+            if len(repay_nodes) > 0 and len(take_nodes) > 0:
+                repay, take = repay_nodes[0], take_nodes[0]
+                break
+
+        return repay, take
 
     def _get_period(self, tree: etree._ElementTree):
         # sample text: 账单周期 2023/01/14-2023/02/13
