@@ -167,7 +167,6 @@ class CommEmlToCsv(EmlToCsvConverter):
         td = tree.xpath('//*[contains(text(), "本期应还款")]')[0]
         return clean_number(td.getnext().text)
 
-
     def _get_parts(self, node: etree._Element):
         repay, take = None, None
         tables = node.xpath('.//tr/td/table')
@@ -176,7 +175,10 @@ class CommEmlToCsv(EmlToCsvConverter):
             repay_nodes = table.xpath('.//tbody//*[contains(text(), "还款、退货、费用返还明细")]')
             take_nodes = table.xpath('.//tbody//*[contains(text(), "消费、取现、其他费用明细")]')
             if len(repay_nodes) > 0 and len(take_nodes) > 0:
-                repay, take = repay_nodes[0], take_nodes[0]
+                tbodys = table.xpath('./tbody')
+                if len(tbodys) != 2:
+                    raise ValueError("CommEmlToCsv: data table does not have repayList and takeList")
+                repay, take = tbodys
                 break
 
         return repay, take

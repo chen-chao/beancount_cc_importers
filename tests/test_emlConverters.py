@@ -21,19 +21,17 @@ class EmlConverterRunner:
             with open(test_filename, 'r', encoding='utf-8') as f:
                 tree = get_etree_from_eml(f)
                 self.converter.get_csv(tree, writer)
-                lines = s.getvalue().split('\n')
+                lines = s.getvalue().strip().split('\n')
                 assert len(lines) > 1
-
    
 def test_emlConverters():
     converters = [
         EmlConverterRunner(CommEmlToCsv(), r'.*交通银行.*\.eml'),
         EmlConverterRunner(AbcEmlToCsv(), r'.*中国农业银行.*\.eml'),
         EmlConverterRunner(CmbEmlToCsv(), r'.*招商银行.*\.eml'),
-        EmlConverterRunner(PingAnEmlToCsv(), r'.*平安银行.*\.eml'),
+        EmlConverterRunner(PingAnEmlToCsv(), r'.*平安.*\.eml'),
     ]
 
     for test_filename in os.listdir('tests/data'):
-        print('running test on file: ', test_filename)
         for converter in converters:
             converter.run(os.path.join('tests/data', test_filename))
