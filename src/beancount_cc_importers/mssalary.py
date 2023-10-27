@@ -10,15 +10,22 @@ from beancount.ingest.importers.mixins.filing import FilingMixin
 @dataclass
 class MSSalaryAccountMap:
     base_salary: str = "Income:BasicPay"
-    espp: str = "Equity:WithHeld:ESPPInvest"
-    pension: str = "Expenses:Insurance:Pension"
-    housefund: str = "Assets:Housefund"
-    income_tax: str = "Expenses:Tax:Salary"
+    benefit: str = "Income:Benefit"
+    annual_bonus: str = "Income:AnnualBonus"
+    bank: str = "Assets:Cash:Cmb"
+    stock_selling_income: str = "Equity:WithHeld:StockSale"
     stock_refund: str = "Equity:WithHeld:Stock"
     meal_allowance: str = "Income:MealAllowance"
     espp_selling_income:str = "Equity:WithHeld:EsppDividend"
-    annual_bonus: str = "Income:AnnualBonus"
-    bank: str = "Assets:Cash:Cmb"
+
+    espp: str = "Equity:WithHeld:ESPPInvest"
+
+    pension: str = "Expenses:Insurance:Pension"
+    housefund: str = "Assets:Housefund"
+
+    income_tax: str = "Expenses:Tax:Salary"
+    annualbonus_tax: str = "Expenses:Tax:Reward"
+
 
 class MSSalaryImporter(IdentifyMixin, FilingMixin): 
     def __init__(self, matchers, account_map=None, description="MS salary", currency="CNY"):
@@ -120,9 +127,11 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             if w["id"] == "/313Pension":
                 account = self.account_map.pension
             elif w["id"] == "/362Public Housing Fund":
-                account = self.account_map.housefund, 
+                account = self.account_map.housefund
             elif w["id"] == "/403Tax from Salary":
                 account = f"{self.account_map.income_tax}:{entry.date.year}"
+            elif w["id"] == "/404Tax from Bonus":
+                account = self.account_map.annualbonus_tax
             else:
                 account = w["id"].replace(" ", "_")                
 
@@ -156,6 +165,10 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.espp_selling_income
             elif w["id"] == "3032Annual Bonus - CBI":
                 account = self.account_map.annual_bonus
+            elif w["id"] == "3238Stock Related Payment":
+                account = self.account_map.stock_selling_income
+            elif w["id"] == "3214Festival Allowance":
+                account = self.account_map.benefit
             else:
                 account = w["id"].replace(" ", "_")
 

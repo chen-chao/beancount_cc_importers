@@ -1,15 +1,13 @@
-name: release
+name: Run tests
 run-name: Release beancount-cc-importer to PyPI
 on:
   push:
-    tags:
-      - v*
+    branches:
+      - master
 jobs:
-  pypi-publish:
-    name: upload release to PyPI
+  run-tests:
+    name: Run tests
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
 
     steps:
     - name: Check out code
@@ -22,6 +20,3 @@ jobs:
 
     - name: Run test
       run: pdm run pytest
-
-    - name: Publish package distributions to PyPI
-      run: pdm publish

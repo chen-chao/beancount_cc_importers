@@ -17,7 +17,9 @@ def test_mssalary():
 
             num = ZERO
             for entry in entries:
-                for p in entry.postings:
-                    num += p.units.number
+                for posting in entry.postings:
+                    assert isinstance(posting.account, str)
+                    assert ':' in posting.account
+                    num += posting.units.number
 
                 assert num <= D(0.001)
