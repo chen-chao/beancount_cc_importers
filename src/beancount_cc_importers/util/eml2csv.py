@@ -50,7 +50,7 @@ def add_missing_year(day_field, start_date, end_date):
         d = date(year=y, month=month, day=day)
         if d >= start_date and d <= end_date:
             return d
-    raise ValueError("no proper day in given period")
+    raise ValueError(f"given {day_field}, no proper day found in period: {start_date} - {end_date}")
 
 
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
@@ -133,10 +133,10 @@ class CmbEmlToCsv(EmlToCsvConverter):
         return start_date, end_date
 
 
-class CommEmlToCsv(EmlToCsvConverter):   
+class CommEmlToCsv(EmlToCsvConverter):
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         writer.writerow(["", "交易日期", "记账日期", "卡末四位", "交易说明", "交易金额", "入账金额"])
-        
+
         start_date, end_date = self._get_period(tree)
         repay, take = self._get_parts(tree)
         if repay is not None:
@@ -211,7 +211,7 @@ class PingAnEmlToCsv(EmlToCsvConverter):
 
         if data is None:
             raise ValueError("人民币账户交易明细 not found")
-        
+
         headers = ['交易日期', '记账日期', '交易说明', '人民币金额']
         writer.writerow(headers)
         for tr in data.xpath(".//tbody/tr"):
