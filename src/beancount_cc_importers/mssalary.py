@@ -1,6 +1,7 @@
 import datetime
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 
 from beancount.core import data
 from beancount.core.number import D
@@ -19,7 +20,7 @@ class MSSalaryAccountMap:
     meal_allowance: str = "Income:MealAllowance"
     espp_selling_income: str = "Equity:WithHeld:EsppDividend"
 
-    espp: str = "Equity:WithHeld:ESPPInvest"
+    espp: str = "Equity:WithHeld:EsppInvest"
 
     pension: str = "Expenses:Insurance:Pension"
     housefund: str = "Assets:Housefund"
@@ -30,7 +31,12 @@ class MSSalaryAccountMap:
 
 class MSSalaryImporter(IdentifyMixin, FilingMixin):
     def __init__(
-        self, matchers, account_map=None, description="MS salary", currency="CNY"
+        self,
+        matchers,
+        account_map=None,
+        description="MS salary",
+        currency="CNY",
+        precision=2,
     ):
         if account_map is None:
             account_map = MSSalaryAccountMap()
@@ -38,6 +44,8 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         self.account_map = account_map
         self.description = description
         self.currency = currency
+        self.precision = precision
+
         super().__init__(filing=account_map.base_salary, prefix=None, matchers=matchers)
 
     def extract(self, file, existing_entries=None):
@@ -74,7 +82,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         return self._get_date(d["payments"][-1]["date"])
 
     def _get_transaction(self, filename: str, record: dict) -> data.Transaction:
-        meta = data.new_metadata(filename, 1)  # need the real lino
+        meta = data.new_metadata(filename, 1)  # TODO: set real lino
         meta["category"] = "china-income-tax"
         date = self._get_date(record["date"])
         postings = []
@@ -130,7 +138,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         assert len(bucket["wagetypes"]) == 1
         p = data.Posting(
             self.account_map.espp,
-            data.Amount(D(bucket["wagetypes"][0]["amount"]), self.currency),
+            data.Amount(
+                self._format_amount(bucket["wagetypes"][0]["amount"]), self.currency
+            ),
             None,
             None,
             None,
@@ -154,7 +164,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
             p = data.Posting(
                 account,
-                data.Amount(D(w["amount"]), self.currency),
+                data.Amount(self._format_amount(w["amount"]), self.currency),
                 None,
                 None,
                 None,
@@ -168,7 +178,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         assert len(bucket["wagetypes"]) == 1
         p = data.Posting(
             self.account_map.bank,
-            data.Amount(D(bucket["wagetypes"][0]["amount"]), self.currency),
+            data.Amount(
+                self._format_amount(bucket["wagetypes"][0]["amount"]), self.currency
+            ),
             None,
             None,
             None,
@@ -178,7 +190,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         return entry
 
     def _handle_tax_deduction(self, entry, bucket) -> data.Transaction:
-        entry.meta["tax-deduction"] = D(bucket["amount"])
+        entry.meta["tax-deduction"] = self._format_amount(bucket["amount"])
         return entry
 
     def _handle_salary(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
@@ -202,7 +214,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
             p = data.Posting(
                 account,
-                -data.Amount(D(w["amount"]), self.currency),
+                -data.Amount(self._format_amount(w["amount"]), self.currency),
                 None,
                 None,
                 None,
@@ -211,3 +223,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             entry.postings.append(p)
 
         return entry
+
+    def _format_amount(self, amount: float) -> Decimal:
+        v = f"{{:.{self.precision}f}}".format(amount)
+        return D(v)
