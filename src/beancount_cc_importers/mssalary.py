@@ -200,7 +200,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         return entry
 
     def _handle_tax_deduction(self, entry, bucket) -> data.Transaction:
-        entry.meta["tax-deduction"] = self._format_amount(bucket["amount"])
+        # Fava cannot handle metadata of type "Decimal"
+        # entry.meta["tax-deduction"] = self._format_amount(bucket["amount"])
+        entry.meta["tax-deduction"] = f"{{:.{self.precision}f}}".format(bucket["amount"])
         return entry
 
     def _handle_salary(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
