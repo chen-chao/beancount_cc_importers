@@ -50,8 +50,9 @@ def add_missing_year(day_field, start_date, end_date):
         d = date(year=y, month=month, day=day)
         if d >= start_date and d <= end_date:
             return d
-    raise ValueError(f"given {day_field}, no proper day found in period: {start_date} - {end_date}")
 
+    print(f"given {day_field}, no proper day found in period: {start_date} - {end_date}, use {start_date.year}")
+    return date(year=start_date.year, month=month, day=day)
 
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
     '''Base class of EML to CSV converter.'''

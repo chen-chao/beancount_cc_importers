@@ -3,9 +3,10 @@ import re
 
 from beancount.core.number import ZERO, D
 from beancount.ingest.cache import _FileMemo
+from beancount.parser.printer import format_entry
 
 from beancount_cc_importers.mssalary import MSSalaryImporter
-   
+
 def test_mssalary():
     importer = MSSalaryImporter([('filename', r".*salary_.*\.json")])
     for test_filename in os.listdir('tests/data'):
@@ -19,5 +20,6 @@ def test_mssalary():
                     assert isinstance(posting.account, str)
                     assert ':' in posting.account
                     num += posting.units.number
+                print(format_entry(entry))
 
                 assert num <= D(0.001)

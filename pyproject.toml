@@ -36,7 +36,7 @@ pythonpath = [
     "src"
 ]
 
-addopts = "-r aR"
+addopts = "-s -r aR"
 testpaths = [
     "tests/",
 ]
