@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from beancount.core import data
-from beancount.core.number import D
+from beancount.core.number import D, ZERO
 from beancount.ingest.importers.mixins.identifier import IdentifyMixin
 from beancount.ingest.importers.mixins.filing import FilingMixin
 
@@ -12,6 +12,8 @@ from beancount.ingest.importers.mixins.filing import FilingMixin
 @dataclass
 class MSSalaryAccountMap:
     base_salary: str = "Income:BasicPay"
+    sactuary_deduction: str = "Income:StatutoryDeduction"
+
     benefit: str = "Income:Benefit"
     annual_bonus: str = "Income:AnnualBonus"
     bank: str = "Assets:Cash:Cmb"
@@ -23,6 +25,11 @@ class MSSalaryAccountMap:
     espp: str = "Equity:WithHeld:EsppInvest"
 
     pension: str = "Expenses:Insurance:Pension"
+    medical: str = "Expenses:Insurance:Medical"
+    unemployment: str = "Expenses:Insurance:Unemployment"
+    maternaty: str = "Expenses:Insurance:Maternaty"
+    work_injury: str = "Expenses:Insurance:WorkInjury"
+
     housefund: str = "Assets:Housefund"
 
     income_tax: str = "Expenses:Tax:Salary"
@@ -108,7 +115,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 elif bucket["id"] == "B05":  # income tax deduction
                     entry = self._handle_tax_deduction(entry, bucket)
                 elif bucket["id"] == "B16":  # sactuary deduction
-                    pass
+                    entry = self._handle_sactuary_deduction(entry, bucket)
                 elif bucket["id"] == "B01":  # salary income
                     entry = self._handle_salary(entry, bucket)
                 else:
@@ -151,6 +158,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
     def _handle_insurance(self, entry, bucket) -> data.Transaction:
         for w in bucket["wagetypes"]:
+            if w["amount"] == 0:
+                continue
+
             if w["id"] == "/313Pension":
                 account = self.account_map.pension
             elif w["id"] == "/362Public Housing Fund":
@@ -195,6 +205,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
     def _handle_salary(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
         for w in bucket["wagetypes"]:
+            if w["amount"] == 0:
+                continue
+
             if w["id"] == "1101Basic Pay":
                 account = self.account_map.base_salary
             elif w["id"] == "3236Vested Stock Tax Refund":
@@ -221,6 +234,55 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 None,
             )
             entry.postings.append(p)
+
+        return entry
+
+    def _handle_sactuary_deduction(
+        self, entry: data.Transaction, bucket: dict
+    ) -> data.Transaction:
+        total = ZERO
+
+        for w in bucket["wagetypes"]:
+            if w["amount"] == 0:
+                continue
+
+            if w["id"] == "/363Public Housing Fund":
+                account = self.account_map.housefund
+            elif w["id"] == "/314Pension":
+                account = self.account_map.pension
+            elif w["id"] == "/324Unemployment":
+                account = self.account_map.unemployment
+            elif w["id"] == "/334Medical":
+                account = self.account_map.medical
+            elif w["id"] == "/344Work Related Injury":
+                account = self.account_map.work_injury
+            elif w["id"] == "/354Maternity":
+                account = self.account_map.maternaty
+            else:
+                account = w["id"].replace(" ", "_")
+
+            amount = self._format_amount(w["amount"])
+            total += amount
+            p = data.Posting(
+                account,
+                data.Amount(amount, self.currency),
+                None,
+                None,
+                None,
+                None,
+            )
+            entry.postings.append(p)
+
+        entry.postings.append(
+            data.Posting(
+                self.account_map.sactuary_deduction,
+                data.Amount(-total, self.currency),
+                None,
+                None,
+                None,
+                None,
+            )
+        )
 
         return entry
 
