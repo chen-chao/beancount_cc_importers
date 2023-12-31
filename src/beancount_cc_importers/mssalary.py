@@ -77,8 +77,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             if len(payment["buckets"]) == 0:
                 continue
 
-            e = self._get_transaction(file.name, payment)
-            entries.append(e)
+            entry, sactuary_entry = self._get_transaction(file.name, payment)
+            entries.append(entry)
+            entries.append(sactuary_entry)
 
         return entries
 
@@ -88,7 +89,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
         return self._get_date(d["payments"][-1]["date"])
 
-    def _get_transaction(self, filename: str, record: dict) -> data.Transaction:
+    def _get_transaction(self, filename: str, record: dict):
         meta = data.new_metadata(filename, 1)  # TODO: set real lino
         meta["category"] = "china-income-tax"
         date = self._get_date(record["date"])
@@ -115,7 +116,17 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 elif bucket["id"] == "B05":  # income tax deduction
                     entry = self._handle_tax_deduction(entry, bucket)
                 elif bucket["id"] == "B16":  # sactuary deduction
-                    entry = self._handle_sactuary_deduction(entry, bucket)
+                    sactuary_entry = data.Transaction(
+                        data.new_metadata(filename, 1),
+                        date,
+                        flag="*",
+                        payee=None,
+                        narration=self.description + " - sactuary deduction",
+                        tags=data.EMPTY_SET,
+                        links=data.EMPTY_SET,
+                        postings=[],
+                    )
+                    sactuary_entry = self._handle_sactuary_deduction(sactuary_entry, bucket)
                 elif bucket["id"] == "B01":  # salary income
                     entry = self._handle_salary(entry, bucket)
                 else:
@@ -123,7 +134,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                         f"Unknown bucket, id: {bucket['id']}, label: {bucket['label']}"
                     )
 
-        return entry
+        return entry, sactuary_entry
 
     def _get_date(self, date: str):
         """Get a |datetime.date| object from date string like 2022-12-07."""
