@@ -27,7 +27,7 @@ class MSSalaryAccountMap:
     pension: str = "Expenses:Insurance:Pension"
     medical: str = "Expenses:Insurance:Medical"
     unemployment: str = "Expenses:Insurance:Unemployment"
-    maternaty: str = "Expenses:Insurance:Maternaty"
+    maternaty: str = "Expenses:Insurance:Maternity"
     work_injury: str = "Expenses:Insurance:WorkInjury"
 
     housefund: str = "Assets:Housefund"
