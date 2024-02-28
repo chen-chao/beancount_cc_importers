@@ -16,6 +16,7 @@ class MSSalaryAccountMap:
 
     benefit: str = "Income:Benefit"
     annual_bonus: str = "Income:AnnualBonus"
+    referral_bonus: str = "Income:Referral"
     bank: str = "Assets:Cash:Cmb"
     stock_selling_income: str = "Equity:WithHeld:StockSale"
     stock_refund: str = "Equity:WithHeld:Stock"
@@ -176,8 +177,8 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.pension
             elif w["id"] == "/362Public Housing Fund":
                 account = self.account_map.housefund
-            elif w["id"] == "/403Tax from Salary":
-                account = f"{self.account_map.income_tax}:{entry.date.year}"
+            elif w["id"] == "/403Tax from Salary" or w["id"] == "/405Tax gross up payment":
+                account = f"{self.account_map.income_tax}"
             elif w["id"] == "/404Tax from Bonus":
                 account = self.account_map.annualbonus_tax
             else:
@@ -223,11 +224,11 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
             if w["id"] == "1101Basic Pay":
                 account = self.account_map.base_salary
-            elif w["id"] == "3236Vested Stock Tax Refund":
+            elif w["id"] == "3236Vested Stock Tax Refund" or w["id"] == "6400Total Stock Pay":
                 account = self.account_map.stock_refund
             elif w["id"] == "3254MS Meal Allowance":
                 account = self.account_map.meal_allowance
-            elif w["id"] == "3316ESPP Selling Income":
+            elif w["id"] == "3316ESPP Selling Income" or w["id"] == "3316ESPP Proceeds":
                 account = self.account_map.espp_selling_income
             elif w["id"] == "3032Annual Bonus - CBI":
                 account = self.account_map.annual_bonus
@@ -235,6 +236,12 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.stock_selling_income
             elif w["id"] == "3214Festival Allowance":
                 account = self.account_map.benefit
+            elif w["id"] == "3102Referral Bonus":
+                account = self.account_map.referral_bonus
+            elif w["id"] == "3035Special Bonus":
+                account = self.account_map.benefit
+            elif w["id"] == "/405Tax gross up payment":
+                account = f"{self.account_map.income_tax}"
             else:
                 account = w["id"].replace(" ", "_")
 
