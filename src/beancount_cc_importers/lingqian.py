@@ -1,11 +1,12 @@
 import csv
-import datetime
 
 from beancount.core import data
 from beancount.core.number import D
 from beancount.ingest.cache import _FileMemo
 from beancount.ingest.importers.mixins.identifier import IdentifyMixin
 from beancount.ingest.importers.mixins.filing import FilingMixin
+
+import dateutil.parser
 
 class LingQianImporter(IdentifyMixin, FilingMixin):
     '''Beancount importer for Wechat LingQian debts'''
@@ -29,9 +30,9 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
             for i, row in enumerate(reader, start=self.skip_lines):
                 if self._is_lingqian_expense(row) or self._is_lingqian_income(row):
                     try:
-                        date = datetime.date.fromisoformat(row['交易时间'].split()[0])
-                    except IndexError:
-                        raise ValueError(f'date format should be YYYY-MM-DD, current is {row["交易时间"]}')
+                        date = dateutil.parser.parse(row['交易时间'])
+                    except dateutil.parser.ParserError as e:
+                        raise ValueError(f'row: {row["交易时间"]}, date parser error: {e}')
 
                     is_expense = row['收/支'] == '支出'
                     amount = D(self._get_number(row['金额(元)']))
@@ -66,9 +67,9 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
                     _, end_time = line.split('终止时间：')
 
                     # end_time is in format of [2022-12-27 12:51:23]
-                    return datetime.date.fromisoformat(end_time[1:11])
-                except IndexError:
-                    raise ValueError(f'date format should be YYYY-MM-DD, current is {line}')
+                    return dateutil.parser.parse(end_time[1:11])
+                except dateutil.parser.ParserError as e:
+                    raise ValueError(f'line: {line}, date parser error: {e}')
 
         raise ValueError(f"malformed format: {file.contents()}, expects 2nd line is the starting and ending time")
 
