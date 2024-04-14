@@ -31,7 +31,7 @@ class MSSalaryAccountMap:
     maternaty: str = "Expenses:Insurance:Maternity"
     work_injury: str = "Expenses:Insurance:WorkInjury"
 
-    housefund: str = "Assets:Housefund"
+    housefund: str = "Assets:HouseFund"
 
     income_tax: str = "Expenses:Tax:Salary"
     annualbonus_tax: str = "Expenses:Tax:Reward"
@@ -177,7 +177,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.pension
             elif w["id"] == "/362Public Housing Fund":
                 account = self.account_map.housefund
-            elif w["id"] == "/403Tax from Salary" or w["id"] == "/405Tax gross up payment":
+            elif w["id"] in ("/403Tax from Salary", "/405Tax gross up payment", "/405Tax from Salary"):
                 account = f"{self.account_map.income_tax}"
             elif w["id"] == "/404Tax from Bonus":
                 account = self.account_map.annualbonus_tax
@@ -226,7 +226,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.base_salary
             elif w["id"] == "3236Vested Stock Tax Refund" or w["id"] == "6400Total Stock Pay":
                 account = self.account_map.stock_refund
-            elif w["id"] == "3254MS Meal Allowance":
+            elif w["id"] in ("3254MS Meal Allowance", "3212Meal Allowance"):
                 account = self.account_map.meal_allowance
             elif w["id"] == "3316ESPP Selling Income" or w["id"] == "3316ESPP Proceeds":
                 account = self.account_map.espp_selling_income
@@ -240,7 +240,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.referral_bonus
             elif w["id"] == "3035Special Bonus":
                 account = self.account_map.benefit
-            elif w["id"] == "/405Tax gross up payment":
+            elif w["id"] in ("/405Tax gross up payment", "/405Tax from Salary"):
                 account = f"{self.account_map.income_tax}"
             else:
                 account = w["id"].replace(" ", "_")
