@@ -234,12 +234,10 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.annual_bonus
             elif w["id"] == "3238Stock Related Payment":
                 account = self.account_map.stock_selling_income
-            elif w["id"] == "3214Festival Allowance":
+            elif w["id"] in ("3214Festival Allowance", "3GMOTransfer Lump Sum G/U", "3035Special Bonus"):
                 account = self.account_map.benefit
             elif w["id"] == "3102Referral Bonus":
                 account = self.account_map.referral_bonus
-            elif w["id"] == "3035Special Bonus":
-                account = self.account_map.benefit
             elif w["id"] in ("/405Tax gross up payment", "/405Tax from Salary"):
                 account = f"{self.account_map.income_tax}"
             else:

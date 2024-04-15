@@ -20,6 +20,6 @@ def test_mssalary():
                     assert isinstance(posting.account, str)
                     assert ':' in posting.account
                     num += posting.units.number
-                print(format_entry(entry))
+                # print(format_entry(entry))
 
                 assert num <= D(0.001)
