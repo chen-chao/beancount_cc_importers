@@ -30,7 +30,7 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
             for i, row in enumerate(reader, start=self.skip_lines):
                 if self._is_lingqian_expense(row) or self._is_lingqian_income(row):
                     try:
-                        date = dateutil.parser.parse(row['交易时间'])
+                        date = dateutil.parser.parse(row['交易时间']).date()
                     except dateutil.parser.ParserError as e:
                         raise ValueError(f'row: {row["交易时间"]}, date parser error: {e}')
 
@@ -67,7 +67,7 @@ class LingQianImporter(IdentifyMixin, FilingMixin):
                     _, end_time = line.split('终止时间：')
 
                     # end_time is in format of [2022-12-27 12:51:23]
-                    return dateutil.parser.parse(end_time[1:11])
+                    return dateutil.parser.parse(end_time[1:11]).date()
                 except dateutil.parser.ParserError as e:
                     raise ValueError(f'line: {line}, date parser error: {e}')
 
