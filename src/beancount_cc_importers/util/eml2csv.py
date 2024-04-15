@@ -186,12 +186,24 @@ class CommEmlToCsv(EmlToCsvConverter):
 
     def _get_period(self, tree: etree._ElementTree):
         # sample text: 账单周期 2023/01/14-2023/02/13
-        p = tree.xpath('//*[contains(text(), "账单周期")]')[0]
-        fields = p.text.split(' ')
-        if len(fields) != 2:
-            print(f"Not a valid time period: {p.text}")
+        period = tree.xpath('//*[contains(text(), "账单周期")]')[0]
+        if period is None:
+            raise ValueError("CommEmlToCsv: cannot find 账单周期")
 
-        start, end = fields[-1].split('-')
+        # 从2024.4 开始, 交通银行的账单周期的 html 标签从 p 变成了 td
+        period_text = ""
+        if period.tag == 'td':
+            try:
+                period_text = period.getnext().text
+            except AttributeError:
+                raise ValueError(f"CommEmlToCsv: Not a valid time period: {period.text}")
+        else:
+            try:
+                period_text = period.text.split(' ')[-1]
+            except (AttributeError, IndexError):
+                raise ValueError(f"CommEmlToCsv: Not a valid time period: {period.text}")
+
+        start, end = period_text.split('-')
         start_date = date.fromisoformat(start.replace('/', '-'))
         end_date = date.fromisoformat(end.replace('/', '-'))
         return start_date, end_date
