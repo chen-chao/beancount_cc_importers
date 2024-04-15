@@ -9,6 +9,7 @@ from datetime import date
 
 from lxml import etree
 
+
 def get_etree_from_eml(eml: io.TextIOWrapper) -> etree._ElementTree:
     msg = email.message_from_file(eml)
     parts = list(msg.walk())
@@ -21,9 +22,10 @@ def get_etree_from_eml(eml: io.TextIOWrapper) -> etree._ElementTree:
     html = payload.decode(encoding=book.get_content_charset())
     return etree.parse(io.StringIO(html), etree.HTMLParser())
 
+
 def get_node_text(node: etree._Element) -> str:
     if node is None:
-        return ''
+        return ""
 
     texts = [node.text]
     for e in node.getchildren():
@@ -31,31 +33,37 @@ def get_node_text(node: etree._Element) -> str:
 
     texts.append(node.tail)
 
-    return ''.join([t.strip() for t in texts if t is not None])
+    return "".join([t.strip() for t in texts if t is not None])
+
 
 def clean_number(s: str) -> str:
     """1,637.00 -> 1637"""
     if not s:
         return 0
     try:
-        return re.match(r'.*?(-?\d+(.\d+)?)', s.replace(',', '')).group(1)
+        return re.match(r".*?(-?\d+(.\d+)?)", s.replace(",", "")).group(1)
     except AttributeError as err:
         print(f"Cannot clean number: {s}, exception: {err}")
         return 0
 
+
 def add_missing_year(day_field, start_date, end_date):
-    month=int(day_field[:2])
-    day=int(day_field[3:5])
+    month = int(day_field[:2])
+    day = int(day_field[3:5])
     for y in range(start_date.year, end_date.year + 1):
         d = date(year=y, month=month, day=day)
         if d >= start_date and d <= end_date:
             return d
 
-    print(f"given {day_field}, no proper day found in period: {start_date} - {end_date}, use {start_date.year}")
+    print(
+        f"given {day_field}, no proper day found in period: {start_date} - {end_date}, use {start_date.year}"
+    )
     return date(year=start_date.year, month=month, day=day)
 
+
 class EmlToCsvConverter(metaclass=abc.ABCMeta):
-    '''Base class of EML to CSV converter.'''
+    """Base class of EML to CSV converter."""
+
     @abc.abstractmethod
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
         pass
@@ -67,16 +75,26 @@ class EmlToCsvConverter(metaclass=abc.ABCMeta):
 
 class AbcEmlToCsv(EmlToCsvConverter):
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
-        headers = ['交易日', '入账日期', '卡号末四位', '交易摘要', '交易地点', '交易金额', '入账金额']
+        headers = [
+            "交易日",
+            "入账日期",
+            "卡号末四位",
+            "交易摘要",
+            "交易地点",
+            "交易金额",
+            "入账金额",
+        ]
         writer.writerow(headers)
 
-        trs = tree.xpath('//*[contains(@id, "loopBand1")]//*[contains(@id, "fixBand10")]//table//table//tr')
+        trs = tree.xpath(
+            '//*[contains(@id, "loopBand1")]//*[contains(@id, "fixBand10")]//table//table//tr'
+        )
         for tr in trs:
-            row = list(map(get_node_text, tr.xpath('.//font')))
+            row = list(map(get_node_text, tr.xpath(".//font")))
             if len(row) < 7:
                 # 还款记录
-                if len(row) == 6 and row[2] == '':
-                    row.insert(4, '')
+                if len(row) == 6 and row[2] == "":
+                    row.insert(4, "")
                 else:
                     print(row)
                     continue
@@ -86,31 +104,43 @@ class AbcEmlToCsv(EmlToCsvConverter):
             writer.writerow(row)
 
     def get_balance(self, tree: etree._ElementTree) -> str:
-        tr = tree.xpath('//*[contains(@id, "loopBand1")]//*[contains(@id, "fixBand3")]//table//table//tr')[0]
-        return clean_number(tr.xpath('.//font')[1])
+        tr = tree.xpath(
+            '//*[contains(@id, "loopBand1")]//*[contains(@id, "fixBand3")]//table//table//tr'
+        )[0]
+        return clean_number(tr.xpath(".//font")[1])
 
 
 class CmbEmlToCsv(EmlToCsvConverter):
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
-        headers = ['交易日', '记账日', '交易摘要', '人民币金额', '卡号末四位', '交易地点', '交易地金额']
+        headers = [
+            "交易日",
+            "记账日",
+            "交易摘要",
+            "人民币金额",
+            "卡号末四位",
+            "交易地点",
+            "交易地金额",
+        ]
         writer.writerow(headers)
-        trs = tree.xpath('//*[contains(@id, "fixBand15")]//table//table/tbody/tr')
+        trs = tree.xpath(
+            '//*[contains(@id, "fixBand15")]//table//table/tbody/tr'
+        )
         start_date, end_date = self._get_period(tree)
 
         for tr in trs:
-            row = list(map(get_node_text, tr.xpath('.//font')))
+            row = list(map(get_node_text, tr.xpath(".//font")))
             # print(row)
             if len(row) < 7:
                 continue
 
-            if row[0] == '':
+            if row[0] == "":
                 row[0] = row[1]
 
-            if '/' not in row[1]:
-                row[1] = row[1][:2] + '/' + row[1][2:4]
+            if "/" not in row[1]:
+                row[1] = row[1][:2] + "/" + row[1][2:4]
 
-            if '/' not in row[0]:
-                row[0] = row[0][:2] + '/' + row[0][2:4]
+            if "/" not in row[0]:
+                row[0] = row[0][:2] + "/" + row[0][2:4]
 
             row[0] = add_missing_year(row[0], start_date, end_date).isoformat()
             row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
@@ -119,45 +149,65 @@ class CmbEmlToCsv(EmlToCsvConverter):
             writer.writerow(row)
 
     def get_balance(self, tree: etree._ElementTree) -> str:
-        tds = tree.xpath('//*[contains(@id, "fixBand40")]//table//table/tbody/tr/td')
+        tds = tree.xpath(
+            '//*[contains(@id, "fixBand40")]//table//table/tbody/tr/td'
+        )
         for v in map(get_node_text, tds):
-            if v.strip() == '':
+            if v.strip() == "":
                 continue
             return clean_number(v)
 
     def _get_period(self, tree):
         # sample text: 账单周期 2023/01/14-2023/02/13'
         e = tree.xpath("//*[contains(@id, 'statementCycle')]")[0]
-        start, end = get_node_text(e).split('-')
-        start_date = date.fromisoformat(start.replace('/', '-'))
-        end_date = date.fromisoformat(end.replace('/', '-'))
+        start, end = get_node_text(e).split("-")
+        start_date = date.fromisoformat(start.replace("/", "-"))
+        end_date = date.fromisoformat(end.replace("/", "-"))
         return start_date, end_date
 
 
 class CommEmlToCsv(EmlToCsvConverter):
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
-        writer.writerow(["", "交易日期", "记账日期", "卡末四位", "交易说明", "交易金额", "入账金额"])
+        writer.writerow(
+            [
+                "",
+                "交易日期",
+                "记账日期",
+                "卡末四位",
+                "交易说明",
+                "交易金额",
+                "入账金额",
+            ]
+        )
 
         start_date, end_date = self._get_period(tree)
         repay, take = self._get_parts(tree)
         if repay is not None:
-            for c in repay.xpath('.//tbody/tr'):
-                row = list(map(get_node_text, c.xpath('./td')))
+            for c in repay.xpath(".//tbody/tr"):
+                row = list(map(get_node_text, c.xpath("./td")))
                 # date
-                row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
-                row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
+                row[1] = add_missing_year(
+                    row[1], start_date, end_date
+                ).isoformat()
+                row[2] = add_missing_year(
+                    row[2], start_date, end_date
+                ).isoformat()
 
                 # 交易金额,入账金额
-                row[-1] = '-' + clean_number(row[-1])
-                row[-2] = '-' + clean_number(row[-2])
+                row[-1] = "-" + clean_number(row[-1])
+                row[-2] = "-" + clean_number(row[-2])
                 writer.writerow(row)
 
         if take is not None:
-            for c in take.xpath('.//tbody/tr'):
-                row = list(map(get_node_text, c.xpath('./td')))
+            for c in take.xpath(".//tbody/tr"):
+                row = list(map(get_node_text, c.xpath("./td")))
                 # date
-                row[1] = add_missing_year(row[1], start_date, end_date).isoformat()
-                row[2] = add_missing_year(row[2], start_date, end_date).isoformat()
+                row[1] = add_missing_year(
+                    row[1], start_date, end_date
+                ).isoformat()
+                row[2] = add_missing_year(
+                    row[2], start_date, end_date
+                ).isoformat()
 
                 # 交易金额,入账金额
                 row[-1] = clean_number(row[-1])
@@ -170,15 +220,21 @@ class CommEmlToCsv(EmlToCsvConverter):
 
     def _get_parts(self, node: etree._Element):
         repay, take = None, None
-        tables = node.xpath('.//tr/td/table')
+        tables = node.xpath(".//tr/td/table")
         # assume tables are sorted by nested layers
         for table in reversed(tables):
-            repay_nodes = table.xpath('.//tbody//*[contains(text(), "还款、退货、费用返还明细")]')
-            take_nodes = table.xpath('.//tbody//*[contains(text(), "消费、取现、其他费用明细")]')
+            repay_nodes = table.xpath(
+                './/tbody//*[contains(text(), "还款、退货、费用返还明细")]'
+            )
+            take_nodes = table.xpath(
+                './/tbody//*[contains(text(), "消费、取现、其他费用明细")]'
+            )
             if len(repay_nodes) > 0 and len(take_nodes) > 0:
-                tbodys = table.xpath('./tbody')
+                tbodys = table.xpath("./tbody")
                 if len(tbodys) != 2:
-                    raise ValueError("CommEmlToCsv: data table does not have repayList and takeList")
+                    raise ValueError(
+                        "CommEmlToCsv: data table does not have repayList and takeList"
+                    )
                 repay, take = tbodys
                 break
 
@@ -192,21 +248,26 @@ class CommEmlToCsv(EmlToCsvConverter):
 
         # 从2024.4 开始, 交通银行的账单周期的 html 标签从 p 变成了 td
         period_text = ""
-        if period.tag == 'td':
+        if period.tag == "td":
             try:
                 period_text = period.getnext().text
             except AttributeError:
-                raise ValueError(f"CommEmlToCsv: Not a valid time period: {period.text}")
+                raise ValueError(
+                    f"CommEmlToCsv: Not a valid time period: {period.text}"
+                )
         else:
             try:
-                period_text = period.text.split(' ')[-1]
+                period_text = period.text.split(" ")[-1]
             except (AttributeError, IndexError):
-                raise ValueError(f"CommEmlToCsv: Not a valid time period: {period.text}")
+                raise ValueError(
+                    f"CommEmlToCsv: Not a valid time period: {period.text}"
+                )
 
-        start, end = period_text.split('-')
-        start_date = date.fromisoformat(start.replace('/', '-'))
-        end_date = date.fromisoformat(end.replace('/', '-'))
+        start, end = period_text.split("-")
+        start_date = date.fromisoformat(start.replace("/", "-"))
+        end_date = date.fromisoformat(end.replace("/", "-"))
         return start_date, end_date
+
 
 class PingAnEmlToCsv(EmlToCsvConverter):
     def get_csv(self, tree: etree._ElementTree, writer: csv.writer):
@@ -216,7 +277,7 @@ class PingAnEmlToCsv(EmlToCsvConverter):
             text = t.xpath(".//tr//*[contains(text(), '人民币账户交易明细')]")
             if text:
                 try:
-                    data = tables[i+1]
+                    data = tables[i + 1]
                 except IndexError:
                     raise ValueError("No data table after 人民币账户交易明细")
 
@@ -225,7 +286,7 @@ class PingAnEmlToCsv(EmlToCsvConverter):
         if data is None:
             raise ValueError("人民币账户交易明细 not found")
 
-        headers = ['交易日期', '记账日期', '交易说明', '人民币金额']
+        headers = ["交易日期", "记账日期", "交易说明", "人民币金额"]
         writer.writerow(headers)
         for tr in data.xpath(".//tbody/tr"):
             row = list(map(get_node_text, tr.xpath("./td")))

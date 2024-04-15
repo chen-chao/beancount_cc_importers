@@ -54,7 +54,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         self.currency = currency
         self.precision = precision
 
-        super().__init__(filing=account_map.base_salary, prefix=None, matchers=matchers)
+        super().__init__(
+            filing=account_map.base_salary, prefix=None, matchers=matchers
+        )
 
     def extract(self, file, existing_entries=None):
         with open(file.name, "r", encoding="utf-8") as f:
@@ -127,7 +129,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                         links=data.EMPTY_SET,
                         postings=[],
                     )
-                    sactuary_entry = self._handle_sactuary_deduction(sactuary_entry, bucket)
+                    sactuary_entry = self._handle_sactuary_deduction(
+                        sactuary_entry, bucket
+                    )
                 elif bucket["id"] == "B01":  # salary income
                     entry = self._handle_salary(entry, bucket)
                 else:
@@ -158,7 +162,8 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         p = data.Posting(
             self.account_map.espp,
             data.Amount(
-                self._format_amount(bucket["wagetypes"][0]["amount"]), self.currency
+                self._format_amount(bucket["wagetypes"][0]["amount"]),
+                self.currency,
             ),
             None,
             None,
@@ -177,7 +182,11 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.pension
             elif w["id"] == "/362Public Housing Fund":
                 account = self.account_map.housefund
-            elif w["id"] in ("/403Tax from Salary", "/405Tax gross up payment", "/405Tax from Salary"):
+            elif w["id"] in (
+                "/403Tax from Salary",
+                "/405Tax gross up payment",
+                "/405Tax from Salary",
+            ):
                 account = f"{self.account_map.income_tax}"
             elif w["id"] == "/404Tax from Bonus":
                 account = self.account_map.annualbonus_tax
@@ -201,7 +210,8 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         p = data.Posting(
             self.account_map.bank,
             data.Amount(
-                self._format_amount(bucket["wagetypes"][0]["amount"]), self.currency
+                self._format_amount(bucket["wagetypes"][0]["amount"]),
+                self.currency,
             ),
             None,
             None,
@@ -214,27 +224,41 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
     def _handle_tax_deduction(self, entry, bucket) -> data.Transaction:
         # Fava cannot handle metadata of type "Decimal"
         # entry.meta["tax-deduction"] = self._format_amount(bucket["amount"])
-        entry.meta["tax-deduction"] = f"{{:.{self.precision}f}}".format(bucket["amount"])
+        entry.meta["tax-deduction"] = f"{{:.{self.precision}f}}".format(
+            bucket["amount"]
+        )
         return entry
 
-    def _handle_salary(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
+    def _handle_salary(
+        self, entry: data.Transaction, bucket: dict
+    ) -> data.Transaction:
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
 
             if w["id"] == "1101Basic Pay":
                 account = self.account_map.base_salary
-            elif w["id"] == "3236Vested Stock Tax Refund" or w["id"] == "6400Total Stock Pay":
+            elif (
+                w["id"] == "3236Vested Stock Tax Refund"
+                or w["id"] == "6400Total Stock Pay"
+            ):
                 account = self.account_map.stock_refund
             elif w["id"] in ("3254MS Meal Allowance", "3212Meal Allowance"):
                 account = self.account_map.meal_allowance
-            elif w["id"] == "3316ESPP Selling Income" or w["id"] == "3316ESPP Proceeds":
+            elif (
+                w["id"] == "3316ESPP Selling Income"
+                or w["id"] == "3316ESPP Proceeds"
+            ):
                 account = self.account_map.espp_selling_income
             elif w["id"] == "3032Annual Bonus - CBI":
                 account = self.account_map.annual_bonus
             elif w["id"] == "3238Stock Related Payment":
                 account = self.account_map.stock_selling_income
-            elif w["id"] in ("3214Festival Allowance", "3GMOTransfer Lump Sum G/U", "3035Special Bonus"):
+            elif w["id"] in (
+                "3214Festival Allowance",
+                "3GMOTransfer Lump Sum G/U",
+                "3035Special Bonus",
+            ):
                 account = self.account_map.benefit
             elif w["id"] == "3102Referral Bonus":
                 account = self.account_map.referral_bonus

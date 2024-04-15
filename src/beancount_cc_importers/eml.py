@@ -8,11 +8,21 @@ from beancount.ingest.importers.mixins.identifier import IdentifyMixin
 from beancount.ingest.importers.mixins.filing import FilingMixin
 from beancount.ingest.cache import _FileMemo
 
-from beancount_cc_importers.util.eml2csv import (get_etree_from_eml, EmlToCsvConverter)
+from beancount_cc_importers.util.eml2csv import (
+    get_etree_from_eml,
+    EmlToCsvConverter,
+)
+
 
 class EmlImporter(IdentifyMixin, FilingMixin):
-    '''Beancount importer for debt emails from bank CMB/COMM/ABC'''
-    def __init__(self, matchers, eml_converter: EmlToCsvConverter, csv_importer: CsvImorter):
+    """Beancount importer for debt emails from bank CMB/COMM/ABC"""
+
+    def __init__(
+        self,
+        matchers,
+        eml_converter: EmlToCsvConverter,
+        csv_importer: CsvImorter,
+    ):
         self.account = csv_importer.filing_account
         self.csv_importer = csv_importer
         self.eml_converter = eml_converter
@@ -21,15 +31,17 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         super().__init__(filing=self.account, prefix=None, matchers=matchers)
 
     def ensure_csv(self, filename: str):
-        if filename in self.tempfiles and os.path.exists(self.tempfiles[filename]):
+        if filename in self.tempfiles and os.path.exists(
+            self.tempfiles[filename]
+        ):
             return self.tempfiles[filename]
 
         g_csv = self._gen_csv_path(filename)
 
-        with open(filename, 'r', encoding='utf-8') as eml:
+        with open(filename, "r", encoding="utf-8") as eml:
             tree = get_etree_from_eml(eml)
 
-        with open(g_csv, 'w+', encoding='utf-8') as f:
+        with open(g_csv, "w+", encoding="utf-8") as f:
             writer = csv.writer(f)
             self.eml_converter.get_csv(tree, writer)
             # self.eml_converter.get_balance(tree)
@@ -53,7 +65,9 @@ class EmlImporter(IdentifyMixin, FilingMixin):
         csv_file = _FileMemo(g_csv)
         return self.csv_importer.file_date(csv_file)
 
-    def _gen_csv_path(self, filename:str):
-        _, temp = tempfile.mkstemp(prefix="beancount-cc-importer-", suffix=".g.csv")
+    def _gen_csv_path(self, filename: str):
+        _, temp = tempfile.mkstemp(
+            prefix="beancount-cc-importer-", suffix=".g.csv"
+        )
         self.tempfiles[filename] = temp
         return temp
