@@ -12,3 +12,4 @@ pdm.lock
 *.eml
 *.json
 *.csv
+*.pdf
