@@ -6,7 +6,7 @@ from beancount.core.number import D
 from beancount.ingest.importers.mixins.identifier import IdentifyMixin
 from beancount.ingest.importers.mixins.filing import FilingMixin
 
-from beancount_cc_importers.util.form_recognizer import AzureFormRecognizer
+from beancount_cc_importers.util.azure_recognizer import AzureDocumentRecognizer
 
 
 class BocTransaction:
@@ -83,14 +83,14 @@ class BocPdfImporter(IdentifyMixin, FilingMixin):
         self.account = account
 
         if form_recognizer is None:
-            form_recognizer = AzureFormRecognizer()
+            form_recognizer = AzureDocumentRecognizer()
         self.form_recognizer = form_recognizer
 
         super().__init__(filing=account, prefix=None, matchers=matchers)
 
     def extract(self, file, existing_entries=None):
         transactions = None
-        tables = self.form_recognizer.analyze(file.name)
+        tables = self.form_recognizer.analyze(file.name).tables
         for table in tables:
             if len(table.cells) > 0 and table.cells[0].content.startswith(
                 "交易日"

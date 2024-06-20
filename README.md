@@ -10,5 +10,7 @@ Simple importers for my personal usage. Supported sources and formats:
 | 平安银行 (PingAn)  | email |
 | 微信零钱 (Wechat Lingqian) | csv |
 | Microsoft China salary | json |
+| 余额宝 (Yuebao) | csv |
+| 中国银行 (BOC) | pdf |
 
-Note the repo simply parses ad hoc data sources without relying on official APIs. 
+Note the repo simply parses ad hoc data sources without relying on official APIs.

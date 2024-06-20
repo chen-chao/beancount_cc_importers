@@ -6,49 +6,19 @@ from beancount.core.number import ZERO, D
 from beancount.ingest.cache import _FileMemo
 from beancount.parser.printer import format_entry
 
+from beancount_cc_importers.util.azure_recognizer import JsonAccessor
 from beancount_cc_importers.boc import BocPdfImporter
-
-
-class DictAccesor:
-    def __init__(self, properties: dict):
-        self.properties = properties
-
-    def __getattr__(self, name):
-        # transform snake_case to camelCase
-        camel_case = []
-        for i in range(len(name)):
-            if name[i] == "_":
-                continue
-            if i > 0 and name[i - 1] == "_":
-                camel_case.append(name[i].upper())
-            else:
-                camel_case.append(name[i].lower())
-
-        name = "".join(camel_case)
-        prop = self.properties.get(name)
-
-        if prop is None:
-            raise AttributeError(name)
-
-        if isinstance(prop, dict):
-            return DictAccesor(prop)
-
-        if isinstance(prop, list):
-            return [DictAccesor(p) if isinstance(p, dict) else p for p in prop]
-
-        return prop
-
 
 class FakeAzureFormRecognizer:
     def __init__(self, result_file):
         with open(result_file, "r", encoding="utf-8") as f:
-            self.result = DictAccesor(json.load(f))
+            self.result = JsonAccessor.wrap(json.load(f))
 
     def analyze(self, file_name: str):
-        return self.result.analyze_result.tables
+        return self.result.analyze_result
 
 
-def test_yue():
+def test_boc():
     if not os.path.exists("tests/data/azure_document_results.json"):
         return
 
@@ -76,6 +46,3 @@ def test_yue():
                 # print(format_entry(entry))
 
                 assert num <= D(0.001)
-
-
-test_yue()
