@@ -1,6 +1,6 @@
 [project]
 name = "beancount_cc_importers"
-version = "0.1.9"
+version = "0.1.10"
 description = "Beancount importer plugin"
 authors = [
     {name = "Chao Chen", email = "wenbushi@gmail.com"},
