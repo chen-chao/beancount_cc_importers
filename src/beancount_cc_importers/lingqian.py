@@ -2,9 +2,9 @@ import csv
 
 from beancount.core import data
 from beancount.core.number import D
-from beancount.ingest.cache import _FileMemo
-from beancount.ingest.importers.mixins.identifier import IdentifyMixin
-from beancount.ingest.importers.mixins.filing import FilingMixin
+from beangulp.cache import _FileMemo
+from beangulp.importers.mixins.identifier import IdentifyMixin
+from beangulp.importers.mixins.filing import FilingMixin
 
 import dateutil.parser
 

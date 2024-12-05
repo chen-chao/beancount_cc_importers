@@ -3,8 +3,8 @@ import json
 
 from beancount.core import data
 from beancount.core.number import D
-from beancount.ingest.importers.mixins.identifier import IdentifyMixin
-from beancount.ingest.importers.mixins.filing import FilingMixin
+from beangulp.importers.mixins.identifier import IdentifyMixin
+from beangulp.importers.mixins.filing import FilingMixin
 
 
 class CmbJsonImporter(IdentifyMixin, FilingMixin):

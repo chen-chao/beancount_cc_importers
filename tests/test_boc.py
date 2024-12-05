@@ -3,7 +3,7 @@ import re
 import json
 
 from beancount.core.number import ZERO, D
-from beancount.ingest.cache import _FileMemo
+from beangulp.cache import _FileMemo
 from beancount.parser.printer import format_entry
 
 from beancount_cc_importers.util.azure_recognizer import JsonAccessor

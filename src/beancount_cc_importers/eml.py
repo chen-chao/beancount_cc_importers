@@ -3,10 +3,10 @@ import os
 import os.path
 import tempfile
 
-from beancount.ingest.importers.csv import Importer as CsvImorter
-from beancount.ingest.importers.mixins.identifier import IdentifyMixin
-from beancount.ingest.importers.mixins.filing import FilingMixin
-from beancount.ingest.cache import _FileMemo
+from beangulp.importers.csv import Importer as CsvImorter
+from beangulp.importers.mixins.identifier import IdentifyMixin
+from beangulp.importers.mixins.filing import FilingMixin
+from beangulp.cache import _FileMemo
 
 from beancount_cc_importers.util.eml2csv import (
     get_etree_from_eml,

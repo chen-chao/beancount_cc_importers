@@ -5,8 +5,8 @@ from decimal import Decimal
 
 from beancount.core import data
 from beancount.core.number import D, ZERO
-from beancount.ingest.importers.mixins.identifier import IdentifyMixin
-from beancount.ingest.importers.mixins.filing import FilingMixin
+from beangulp.importers.mixins.identifier import IdentifyMixin
+from beangulp.importers.mixins.filing import FilingMixin
 
 
 @dataclass
@@ -134,9 +134,11 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                     )
                 elif bucket["id"] == "B01":  # salary income
                     entry = self._handle_salary(entry, bucket)
+                elif bucket["id"] == "B30": # stock witheld & diff, espp
+                    entry = self._handle_stock(entry, bucket)
                 else:
                     raise ValueError(
-                        f"Unknown bucket, id: {bucket['id']}, label: {bucket['label']}"
+                        f"Unknown bucket, id: {bucket['id']}, {date}"
                     )
 
         return entry, sactuary_entry
@@ -327,6 +329,30 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         )
 
         return entry
+
+    def _handle_stock(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
+        for w in bucket["wagetypes"]:
+            if w["amount"] == 0:
+                continue
+            if w["id"] == "6101Withheld & Tax Diff CNY":
+                account = self.account_map.stock_refund
+            elif w["id"] == "6302ESPP Proceeds CNY":
+                account = self.account_map.espp_selling_income
+            else:
+                raise ValueError(f"Unknown stock bucket, id: {w['id']}, label: {w['label']}")
+
+            p = data.Posting(
+                account,
+                -data.Amount(self._format_amount(w["amount"]), self.currency),
+                None,
+                None,
+                None,
+                None,
+            )
+            entry.postings.append(p)
+
+        return entry
+
 
     def _format_amount(self, amount: float) -> Decimal:
         v = f"{{:.{self.precision}f}}".format(amount)

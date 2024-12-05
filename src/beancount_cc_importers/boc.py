@@ -3,8 +3,8 @@ import re
 
 from beancount.core import data
 from beancount.core.number import D
-from beancount.ingest.importers.mixins.identifier import IdentifyMixin
-from beancount.ingest.importers.mixins.filing import FilingMixin
+from beangulp.importers.mixins.identifier import IdentifyMixin
+from beangulp.importers.mixins.filing import FilingMixin
 
 from beancount_cc_importers.util.azure_recognizer import AzureDocumentRecognizer
 
