@@ -134,7 +134,7 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                     )
                 elif bucket["id"] == "B01":  # salary income
                     entry = self._handle_salary(entry, bucket)
-                elif bucket["id"] == "B30": # stock witheld & diff, espp
+                elif bucket["id"] == "B30":  # stock witheld & diff, espp
                     entry = self._handle_stock(entry, bucket)
                 else:
                     raise ValueError(
@@ -186,15 +186,15 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.housefund
             elif w["id"] in (
                 "/403Tax from Salary",
-                "/405Tax gross up payment",
                 "/405Tax from Salary",
+                "/405Tax gross up payment",
+                "/405Tax gross-up payment",
             ):
                 account = f"{self.account_map.income_tax}"
             elif w["id"] == "/404Tax from Bonus":
                 account = self.account_map.annualbonus_tax
             else:
                 account = w["id"].replace(" ", "_")
-
             p = data.Posting(
                 account,
                 data.Amount(self._format_amount(w["amount"]), self.currency),
@@ -264,8 +264,14 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
                 account = self.account_map.benefit
             elif w["id"] == "3102Referral Bonus":
                 account = self.account_map.referral_bonus
-            elif w["id"] in ("/405Tax gross up payment", "/405Tax from Salary"):
+            elif w["id"] == "/405Tax from Salary":
                 account = f"{self.account_map.income_tax}"
+            elif w["id"] in (
+                "/405Tax gross up payment",
+                "/405Tax gross-up payment",
+                "3072Shared Success Bonus-YEAR",
+            ):
+                account = f"{self.account_map.benefit}"
             else:
                 account = w["id"].replace(" ", "_")
 
@@ -330,7 +336,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
         return entry
 
-    def _handle_stock(self, entry: data.Transaction, bucket: dict) -> data.Transaction:
+    def _handle_stock(
+        self, entry: data.Transaction, bucket: dict
+    ) -> data.Transaction:
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
@@ -339,7 +347,9 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             elif w["id"] == "6302ESPP Proceeds CNY":
                 account = self.account_map.espp_selling_income
             else:
-                raise ValueError(f"Unknown stock bucket, id: {w['id']}, label: {w['label']}")
+                raise ValueError(
+                    f"Unknown stock bucket, id: {w['id']}, label: {w['label']}"
+                )
 
             p = data.Posting(
                 account,
@@ -352,7 +362,6 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             entry.postings.append(p)
 
         return entry
-
 
     def _format_amount(self, amount: float) -> Decimal:
         v = f"{{:.{self.precision}f}}".format(amount)
