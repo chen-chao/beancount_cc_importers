@@ -1,6 +1,6 @@
 [project]
 name = "beancount_cc_importers"
-version = "0.1.11"
+version = "0.1.12"
 description = "Beancount importer plugin"
 authors = [
     {name = "Chao Chen", email = "wenbushi@gmail.com"},
@@ -9,7 +9,7 @@ dependencies = [
     "lxml>=4.9.3",
     "beancount>=2.3.6",
     "python-dateutil>=2.9.0.post0",
-    "azure-ai-documentintelligence==1.0.0b2",
+    "azure-ai-documentintelligence==1.0.2",
     "azure-ai-formrecognizer>=3.3.3",
     "beangulp>=0.1.1",
 ]
