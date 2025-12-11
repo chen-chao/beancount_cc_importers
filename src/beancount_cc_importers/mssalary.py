@@ -159,6 +159,12 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
         return datetime.date.min
 
+    def _normalize_wagetype_id(self, wagetype_id: str) -> str:
+        """Normalize wagetype ID by removing the '00' prefix if present."""
+        if wagetype_id.startswith("00"):
+            return wagetype_id[2:]
+        return wagetype_id
+
     def _handle_espp(self, entry, bucket) -> data.Transaction:
         assert len(bucket["wagetypes"]) == 1
         p = data.Posting(
@@ -180,21 +186,23 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             if w["amount"] == 0:
                 continue
 
-            if w["id"] == "/313Pension":
+            wagetype_id = self._normalize_wagetype_id(w["id"])
+            if wagetype_id == "/313Pension":
                 account = self.account_map.pension
-            elif w["id"] == "/362Public Housing Fund":
+            elif wagetype_id == "/362Public Housing Fund":
                 account = self.account_map.housefund
-            elif w["id"] in (
+            elif wagetype_id in (
                 "/403Tax from Salary",
                 "/405Tax from Salary",
                 "/405Tax gross up payment",
                 "/405Tax gross-up payment",
             ):
                 account = f"{self.account_map.income_tax}"
-            elif w["id"] == "/404Tax from Bonus":
+            elif wagetype_id == "/404Tax from Bonus":
                 account = self.account_map.annualbonus_tax
             else:
-                account = w["id"].replace(" ", "_")
+                # Fallback for unknown insurance/deduction types
+                account = "Expenses:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
             p = data.Posting(
                 account,
                 data.Amount(self._format_amount(w["amount"]), self.currency),
@@ -238,42 +246,46 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             if w["amount"] == 0:
                 continue
 
-            if w["id"] == "1101Basic Pay":
+            wagetype_id = self._normalize_wagetype_id(w["id"])
+            if wagetype_id == "1101Basic Pay":
                 account = self.account_map.base_salary
             elif (
-                w["id"] == "3236Vested Stock Tax Refund"
-                or w["id"] == "6400Total Stock Pay"
+                wagetype_id == "3236Vested Stock Tax Refund"
+                or wagetype_id == "6400Total Stock Pay"
             ):
                 account = self.account_map.stock_refund
-            elif w["id"] in ("3254MS Meal Allowance", "3212Meal Allowance"):
+            elif wagetype_id in ("3254MS Meal Allowance", "3212Meal Allowance", "5001Meal Allowance"):
                 account = self.account_map.meal_allowance
             elif (
-                w["id"] == "3316ESPP Selling Income"
-                or w["id"] == "3316ESPP Proceeds"
+                wagetype_id == "3316ESPP Selling Income"
+                or wagetype_id == "3316ESPP Proceeds"
             ):
                 account = self.account_map.espp_selling_income
-            elif w["id"] == "3032Annual Bonus - CBI":
+            elif wagetype_id == "3032Annual Bonus - CBI":
                 account = self.account_map.annual_bonus
-            elif w["id"] == "3238Stock Related Payment":
+            elif wagetype_id == "3238Stock Related Payment":
                 account = self.account_map.stock_selling_income
-            elif w["id"] in (
+            elif wagetype_id in (
                 "3214Festival Allowance",
                 "3GMOTransfer Lump Sum G/U",
                 "3035Special Bonus",
+                "3542Service Award Program",
+                "3229Health Club",
             ):
                 account = self.account_map.benefit
-            elif w["id"] == "3102Referral Bonus":
+            elif wagetype_id == "3102Referral Bonus":
                 account = self.account_map.referral_bonus
-            elif w["id"] == "/405Tax from Salary":
+            elif wagetype_id == "/405Tax from Salary":
                 account = f"{self.account_map.income_tax}"
-            elif w["id"] in (
+            elif wagetype_id in (
                 "/405Tax gross up payment",
                 "/405Tax gross-up payment",
                 "3072Shared Success Bonus-YEAR",
             ):
                 account = f"{self.account_map.benefit}"
             else:
-                account = w["id"].replace(" ", "_")
+                # Fallback for unknown wage types - create account under Income:Other
+                account = "Income:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
 
             p = data.Posting(
                 account,
@@ -296,20 +308,22 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             if w["amount"] == 0:
                 continue
 
-            if w["id"] == "/363Public Housing Fund":
+            wagetype_id = self._normalize_wagetype_id(w["id"])
+            if wagetype_id == "/363Public Housing Fund":
                 account = self.account_map.housefund
-            elif w["id"] == "/314Pension":
+            elif wagetype_id == "/314Pension":
                 account = self.account_map.pension
-            elif w["id"] == "/324Unemployment":
+            elif wagetype_id == "/324Unemployment":
                 account = self.account_map.unemployment
-            elif w["id"] == "/334Medical":
+            elif wagetype_id == "/334Medical":
                 account = self.account_map.medical
-            elif w["id"] == "/344Work Related Injury":
+            elif wagetype_id == "/344Work Related Injury":
                 account = self.account_map.work_injury
-            elif w["id"] == "/354Maternity":
+            elif wagetype_id == "/354Maternity":
                 account = self.account_map.maternaty
             else:
-                account = w["id"].replace(" ", "_")
+                # Fallback for unknown statutory deduction types
+                account = "Expenses:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
 
             amount = self._format_amount(w["amount"])
             total += amount
@@ -342,9 +356,10 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
-            if w["id"] == "6101Withheld & Tax Diff CNY":
+            wagetype_id = self._normalize_wagetype_id(w["id"])
+            if wagetype_id == "6101Withheld & Tax Diff CNY":
                 account = self.account_map.stock_refund
-            elif w["id"] == "6302ESPP Proceeds CNY":
+            elif wagetype_id == "6302ESPP Proceeds CNY":
                 account = self.account_map.espp_selling_income
             else:
                 raise ValueError(

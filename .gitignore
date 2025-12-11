@@ -5,7 +5,7 @@ dist/
 
 .venv
 *.pyc
-pdm.lock
+*.lock
 .pdm-python
 .pdm-build
 
