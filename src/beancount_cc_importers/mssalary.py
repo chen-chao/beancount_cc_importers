@@ -240,20 +240,23 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
             "/405Tax from Salary": self.account_map.income_tax,
         }
         
+        # Stock-related IDs that should be skipped in B01 (handled in B30)
+        stock_related_ids = self.STOCK_REFUND_IDS | self.ESPP_PROCEEDS_IDS
+        
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
 
             wagetype_id = self._normalize_wagetype_id(w["id"])
             
+            # Skip stock-related entries to avoid duplication with B30 bucket
+            if wagetype_id in stock_related_ids:
+                continue
+            
             if wagetype_id in account_mapping:
                 account = account_mapping[wagetype_id]
-            elif wagetype_id in self.STOCK_REFUND_IDS:
-                account = self.account_map.stock_refund
             elif wagetype_id in self.MEAL_ALLOWANCE_IDS:
                 account = self.account_map.meal_allowance
-            elif wagetype_id in self.ESPP_PROCEEDS_IDS:
-                account = self.account_map.espp_selling_income
             elif wagetype_id in self.BENEFIT_IDS or wagetype_id in self.TAX_GROSS_UP_IDS:
                 account = self.account_map.benefit
             else:
