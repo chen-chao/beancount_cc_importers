@@ -38,6 +38,15 @@ class MSSalaryAccountMap:
 
 
 class MSSalaryImporter(IdentifyMixin, FilingMixin):
+    # Wagetype ID mappings
+    MEAL_ALLOWANCE_IDS = {"3254MS Meal Allowance", "3212Meal Allowance", "5001Meal Allowance"}
+    ESPP_PROCEEDS_IDS = {"3316ESPP Selling Income", "3316ESPP Proceeds"}
+    STOCK_REFUND_IDS = {"3236Vested Stock Tax Refund", "6400Total Stock Pay"}
+    BENEFIT_IDS = {"3214Festival Allowance", "3GMOTransfer Lump Sum G/U", "3035Special Bonus", 
+                   "3542Service Award Program", "3229Health Club", "3072Shared Success Bonus-YEAR"}
+    TAX_GROSS_UP_IDS = {"/405Tax gross up payment", "/405Tax gross-up payment"}
+    TAX_FROM_SALARY_IDS = {"/403Tax from Salary", "/405Tax from Salary"}
+
     def __init__(
         self,
         matchers,
@@ -161,74 +170,55 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
 
     def _normalize_wagetype_id(self, wagetype_id: str) -> str:
         """Normalize wagetype ID by removing the '00' prefix if present."""
-        if wagetype_id.startswith("00"):
-            return wagetype_id[2:]
-        return wagetype_id
+        return wagetype_id[2:] if wagetype_id.startswith("00") else wagetype_id
+
+    def _create_posting(self, account: str, amount: float, negate: bool = False) -> data.Posting:
+        """Create a posting with the given account and amount."""
+        amount_value = self._format_amount(amount)
+        if negate:
+            amount_value = -amount_value
+        return data.Posting(
+            account,
+            data.Amount(amount_value, self.currency),
+            None, None, None, None,
+        )
 
     def _handle_espp(self, entry, bucket) -> data.Transaction:
         assert len(bucket["wagetypes"]) == 1
-        p = data.Posting(
-            self.account_map.espp,
-            data.Amount(
-                self._format_amount(bucket["wagetypes"][0]["amount"]),
-                self.currency,
-            ),
-            None,
-            None,
-            None,
-            None,
+        entry.postings.append(
+            self._create_posting(self.account_map.espp, bucket["wagetypes"][0]["amount"])
         )
-        entry.postings.append(p)
         return entry
 
     def _handle_insurance(self, entry, bucket) -> data.Transaction:
+        account_mapping = {
+            "/313Pension": self.account_map.pension,
+            "/362Public Housing Fund": self.account_map.housefund,
+            "/404Tax from Bonus": self.account_map.annualbonus_tax,
+        }
+        
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
 
             wagetype_id = self._normalize_wagetype_id(w["id"])
-            if wagetype_id == "/313Pension":
-                account = self.account_map.pension
-            elif wagetype_id == "/362Public Housing Fund":
-                account = self.account_map.housefund
-            elif wagetype_id in (
-                "/403Tax from Salary",
-                "/405Tax from Salary",
-                "/405Tax gross up payment",
-                "/405Tax gross-up payment",
-            ):
-                account = f"{self.account_map.income_tax}"
-            elif wagetype_id == "/404Tax from Bonus":
-                account = self.account_map.annualbonus_tax
+            
+            if wagetype_id in account_mapping:
+                account = account_mapping[wagetype_id]
+            elif wagetype_id in self.TAX_FROM_SALARY_IDS or wagetype_id in self.TAX_GROSS_UP_IDS:
+                account = self.account_map.income_tax
             else:
-                # Fallback for unknown insurance/deduction types
                 account = "Expenses:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
-            p = data.Posting(
-                account,
-                data.Amount(self._format_amount(w["amount"]), self.currency),
-                None,
-                None,
-                None,
-                None,
-            )
-            entry.postings.append(p)
+            
+            entry.postings.append(self._create_posting(account, w["amount"]))
 
         return entry
 
     def _handle_bank_transfer(self, entry, bucket) -> data.Transaction:
         assert len(bucket["wagetypes"]) == 1
-        p = data.Posting(
-            self.account_map.bank,
-            data.Amount(
-                self._format_amount(bucket["wagetypes"][0]["amount"]),
-                self.currency,
-            ),
-            None,
-            None,
-            None,
-            None,
+        entry.postings.append(
+            self._create_posting(self.account_map.bank, bucket["wagetypes"][0]["amount"])
         )
-        entry.postings.append(p)
         return entry
 
     def _handle_tax_deduction(self, entry, bucket) -> data.Transaction:
@@ -242,139 +232,86 @@ class MSSalaryImporter(IdentifyMixin, FilingMixin):
     def _handle_salary(
         self, entry: data.Transaction, bucket: dict
     ) -> data.Transaction:
+        account_mapping = {
+            "1101Basic Pay": self.account_map.base_salary,
+            "3032Annual Bonus - CBI": self.account_map.annual_bonus,
+            "3238Stock Related Payment": self.account_map.stock_selling_income,
+            "3102Referral Bonus": self.account_map.referral_bonus,
+            "/405Tax from Salary": self.account_map.income_tax,
+        }
+        
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
 
             wagetype_id = self._normalize_wagetype_id(w["id"])
-            if wagetype_id == "1101Basic Pay":
-                account = self.account_map.base_salary
-            elif (
-                wagetype_id == "3236Vested Stock Tax Refund"
-                or wagetype_id == "6400Total Stock Pay"
-            ):
+            
+            if wagetype_id in account_mapping:
+                account = account_mapping[wagetype_id]
+            elif wagetype_id in self.STOCK_REFUND_IDS:
                 account = self.account_map.stock_refund
-            elif wagetype_id in ("3254MS Meal Allowance", "3212Meal Allowance", "5001Meal Allowance"):
+            elif wagetype_id in self.MEAL_ALLOWANCE_IDS:
                 account = self.account_map.meal_allowance
-            elif (
-                wagetype_id == "3316ESPP Selling Income"
-                or wagetype_id == "3316ESPP Proceeds"
-            ):
+            elif wagetype_id in self.ESPP_PROCEEDS_IDS:
                 account = self.account_map.espp_selling_income
-            elif wagetype_id == "3032Annual Bonus - CBI":
-                account = self.account_map.annual_bonus
-            elif wagetype_id == "3238Stock Related Payment":
-                account = self.account_map.stock_selling_income
-            elif wagetype_id in (
-                "3214Festival Allowance",
-                "3GMOTransfer Lump Sum G/U",
-                "3035Special Bonus",
-                "3542Service Award Program",
-                "3229Health Club",
-            ):
+            elif wagetype_id in self.BENEFIT_IDS or wagetype_id in self.TAX_GROSS_UP_IDS:
                 account = self.account_map.benefit
-            elif wagetype_id == "3102Referral Bonus":
-                account = self.account_map.referral_bonus
-            elif wagetype_id == "/405Tax from Salary":
-                account = f"{self.account_map.income_tax}"
-            elif wagetype_id in (
-                "/405Tax gross up payment",
-                "/405Tax gross-up payment",
-                "3072Shared Success Bonus-YEAR",
-            ):
-                account = f"{self.account_map.benefit}"
             else:
-                # Fallback for unknown wage types - create account under Income:Other
                 account = "Income:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
 
-            p = data.Posting(
-                account,
-                -data.Amount(self._format_amount(w["amount"]), self.currency),
-                None,
-                None,
-                None,
-                None,
-            )
-            entry.postings.append(p)
+            entry.postings.append(self._create_posting(account, w["amount"], negate=True))
 
         return entry
 
     def _handle_sactuary_deduction(
         self, entry: data.Transaction, bucket: dict
     ) -> data.Transaction:
+        account_mapping = {
+            "/363Public Housing Fund": self.account_map.housefund,
+            "/314Pension": self.account_map.pension,
+            "/324Unemployment": self.account_map.unemployment,
+            "/334Medical": self.account_map.medical,
+            "/344Work Related Injury": self.account_map.work_injury,
+            "/354Maternity": self.account_map.maternaty,
+        }
+        
         total = ZERO
-
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
 
             wagetype_id = self._normalize_wagetype_id(w["id"])
-            if wagetype_id == "/363Public Housing Fund":
-                account = self.account_map.housefund
-            elif wagetype_id == "/314Pension":
-                account = self.account_map.pension
-            elif wagetype_id == "/324Unemployment":
-                account = self.account_map.unemployment
-            elif wagetype_id == "/334Medical":
-                account = self.account_map.medical
-            elif wagetype_id == "/344Work Related Injury":
-                account = self.account_map.work_injury
-            elif wagetype_id == "/354Maternity":
-                account = self.account_map.maternaty
-            else:
-                # Fallback for unknown statutory deduction types
-                account = "Expenses:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
+            account = account_mapping.get(
+                wagetype_id,
+                "Expenses:Other:" + wagetype_id.replace(" ", "_").replace("/", "_")
+            )
 
             amount = self._format_amount(w["amount"])
             total += amount
-            p = data.Posting(
-                account,
-                data.Amount(amount, self.currency),
-                None,
-                None,
-                None,
-                None,
-            )
-            entry.postings.append(p)
+            entry.postings.append(self._create_posting(account, w["amount"]))
 
-        entry.postings.append(
-            data.Posting(
-                self.account_map.sactuary_deduction,
-                data.Amount(-total, self.currency),
-                None,
-                None,
-                None,
-                None,
-            )
-        )
-
+        entry.postings.append(self._create_posting(self.account_map.sactuary_deduction, -total, negate=False))
         return entry
 
     def _handle_stock(
         self, entry: data.Transaction, bucket: dict
     ) -> data.Transaction:
+        account_mapping = {
+            "6101Withheld & Tax Diff CNY": self.account_map.stock_refund,
+            "6302ESPP Proceeds CNY": self.account_map.espp_selling_income,
+        }
+        
         for w in bucket["wagetypes"]:
             if w["amount"] == 0:
                 continue
+            
             wagetype_id = self._normalize_wagetype_id(w["id"])
-            if wagetype_id == "6101Withheld & Tax Diff CNY":
-                account = self.account_map.stock_refund
-            elif wagetype_id == "6302ESPP Proceeds CNY":
-                account = self.account_map.espp_selling_income
-            else:
-                raise ValueError(
-                    f"Unknown stock bucket, id: {w['id']}, label: {w['label']}"
-                )
-
-            p = data.Posting(
-                account,
-                -data.Amount(self._format_amount(w["amount"]), self.currency),
-                None,
-                None,
-                None,
-                None,
+            if wagetype_id not in account_mapping:
+                raise ValueError(f"Unknown stock bucket, id: {w['id']}, label: {w['label']}")
+            
+            entry.postings.append(
+                self._create_posting(account_mapping[wagetype_id], w["amount"], negate=True)
             )
-            entry.postings.append(p)
 
         return entry
 
